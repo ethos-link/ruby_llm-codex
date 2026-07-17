@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
     official Codex CLI, reuses local ChatGPT authentication, and maps RubyLLM
     structured-output schemas to Codex output schemas.
   TEXT
-  spec.homepage = "https://www.ethos-link.com/opensource/ruby_llm-codex"
+  spec.homepage = "https://github.com/ethos-link/ruby_llm-codex"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1.3"
 

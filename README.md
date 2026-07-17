@@ -1,5 +1,9 @@
 # RubyLLM Codex provider
 
+[![Ruby](https://github.com/ethos-link/ruby_llm-codex/actions/workflows/ruby.yml/badge.svg)](https://github.com/ethos-link/ruby_llm-codex/actions/workflows/ruby.yml)
+[![Gem Version](https://badge.fury.io/rb/ruby_llm-codex.svg)](https://rubygems.org/gems/ruby_llm-codex)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 This small adapter lets RubyLLM invoke the official local Codex CLI as a
 provider. Codex reuses the ChatGPT login stored by `codex login`, so these runs
 consume your Codex subscription allowance rather than OpenAI API credits.
@@ -31,26 +35,23 @@ codex login
 Check the model list in your installed Codex version before a large run. Model
 availability depends on the account and currently installed CLI.
 
-Run the automated unit tests and the two-request live smoke task with:
+## Installation
 
-```bash
-bundle exec rake test
-bundle exec rake codex:smoke
-```
-
-The smoke task verifies the installed CLI version, then performs one plain-text
-completion and one structured-output completion through the real RubyLLM
-provider. It consumes Codex subscription allowance and requires a completed
-login. Set `CODEX_MODEL`, `CODEX_BIN`, or `CODEX_TIMEOUT` to override its model,
-executable, or 300-second request timeout.
-
-For local development, add this project to your application:
+Add the gem to your application's `Gemfile`:
 
 ```ruby
-gem "ruby_llm-codex", path: "/path/to/ruby_llm-codex"
+gem "ruby_llm-codex", "~> 0.1"
 ```
 
-Then use it like any explicit RubyLLM provider:
+Then run `bundle install`. You can also install it directly:
+
+```bash
+gem install ruby_llm-codex
+```
+
+## Usage
+
+Require the gem and use Codex as an explicit RubyLLM provider:
 
 ```ruby
 require "ruby_llm-codex"
@@ -91,6 +92,10 @@ By default every request:
 This prevents local `AGENTS.md`, plugins, MCP servers, repository contents, and
 saved session history from quietly affecting a comparison.
 
+## Configuration
+
+### Per request
+
 To deliberately let Codex inspect a repository or use selected configuration:
 
 ```ruby
@@ -105,6 +110,8 @@ chat.with_params(
   }
 )
 ```
+
+### Global
 
 Global configuration is also available:
 
@@ -145,6 +152,18 @@ If you later need streaming, persistent threads, or high throughput, replace
 the process-per-request implementation with a long-running `codex app-server`
 client while keeping the same RubyLLM provider surface.
 
+## Troubleshooting
+
+- **`codex` is not found:** install the Codex CLI, run `codex login`, or set
+  `RubyLLM.config.codex_cli_path` to its absolute path.
+- **A request times out:** increase `codex.timeout` or `CODEX_TIMEOUT` for the
+  smoke task. Timed-out process groups are terminated automatically.
+- **Codex consumes excessive memory:** use the current gem version. The provider
+  explicitly disables Codex shell snapshots, which are unnecessary for its
+  completion-only execution and previously caused runaway Bash processes.
+- **Local instructions affect output:** keep `ignore_user_config: true` and do
+  not set a working directory when you need isolated comparisons.
+
 ## Development
 
 ```bash
@@ -153,6 +172,13 @@ cd ruby_llm-codex
 
 bundle install
 bundle exec rake
+```
+
+To test an unreleased checkout from another application, use a local path in
+that application's `Gemfile`:
+
+```ruby
+gem "ruby_llm-codex", path: "/path/to/ruby_llm-codex"
 ```
 
 The default Rake task runs the unit suite and Standard Ruby. CI runs the same
@@ -184,10 +210,10 @@ bundle exec lefthook install
 
 ## Release
 
-Releases are tag-driven. Local release commands prepare the changelog, version
-commit, and tag; GitHub Actions runs the full test matrix, publishes through
-RubyGems trusted publishing, and creates the GitHub release from
-`CHANGELOG.md`.
+Releases are tag-driven. GitHub Actions runs the full test matrix, publishes
+through RubyGems trusted publishing, and creates the GitHub release from
+`CHANGELOG.md`. See [docs/releasing.md](docs/releasing.md) for repository setup,
+the first-release procedure, verification, and recovery guidance.
 
 Install [git-cliff](https://git-cliff.org/) locally, check out a clean `main`,
 and run one of:
@@ -199,22 +225,21 @@ bundle exec rake 'release:prepare[major]'
 bundle exec rake 'release:prepare[0.2.0]'
 ```
 
-The task:
+For releases after `0.1.0`, the task:
 
 1. Prepends the next changelog section from Conventional Commits.
 2. Updates `lib/ruby_llm/codex/version.rb`.
 3. Commits the release files and creates `vX.Y.Z`.
 4. Pushes `main` and the tag to `origin`.
 
-Before the first automated release, configure the gem's RubyGems trusted
-publisher with owner `ethos-link`, repository `ruby_llm-codex`, workflow
-`release.yml`, and environment `release`. The environment name must match the
-protected GitHub environment used by the release job.
+The initial `0.1.0` release only needs its existing version commit tagged after
+the GitHub environment and pending RubyGems trusted publisher are configured.
 
 ## Contributing
 
-Create a non-main branch, keep commits scoped and conventional, run
-`bundle exec rake`, and open a pull request against `main`.
+See [CONTRIBUTING.md](CONTRIBUTING.md). By participating, you agree to follow
+the [Code of Conduct](CODE_OF_CONDUCT.md). Security reports should follow
+[SECURITY.md](SECURITY.md), not a public issue.
 
 ## License
 
