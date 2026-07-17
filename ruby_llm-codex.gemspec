@@ -9,9 +9,9 @@ Gem::Specification.new do |spec|
   spec.email = ["devel@ethos-link.com"]
   spec.summary = "Use a local, ChatGPT-authenticated Codex CLI as a RubyLLM provider"
   spec.description = <<~TEXT.strip
-    A small RubyLLM provider for controlled model comparisons. It invokes the
-    official Codex CLI, reuses local ChatGPT authentication, and maps RubyLLM
-    structured-output schemas to Codex output schemas.
+    A RubyLLM provider that invokes the official Codex CLI, reuses local ChatGPT
+    authentication, and maps RubyLLM structured-output schemas to Codex output
+    schemas.
   TEXT
   spec.homepage = "https://github.com/ethos-link/ruby_llm-codex"
   spec.license = "MIT"

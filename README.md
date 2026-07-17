@@ -4,18 +4,17 @@
 [![Gem Version](https://badge.fury.io/rb/ruby_llm-codex.svg)](https://rubygems.org/gems/ruby_llm-codex)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-This small adapter lets RubyLLM invoke the official local Codex CLI as a
-provider. Codex reuses the ChatGPT login stored by `codex login`, so these runs
-consume your Codex subscription allowance rather than OpenAI API credits.
+This adapter lets RubyLLM invoke the official local Codex CLI as a provider. It
+supports text completions and structured output through RubyLLM's familiar chat
+interface.
 
-The intended use is controlled prompt comparison, especially structured-output
-experiments. It is not intended to turn a personal ChatGPT subscription into a
-public API.
+Authentication is handled by the Codex CLI using the account configured by
+`codex login`; the gem does not accept or store an OpenAI API key.
 
-This measures **Codex harness output**, not a raw model API response. Codex adds
-its own base agent instructions and runtime behavior. RubyLLM system messages
-are layered in as Codex developer instructions, which is the closest supported
-mapping but not an identical wire-level experiment.
+Responses come from the **Codex agent harness**, not directly from a raw model
+API. Codex applies its own base instructions and runtime behavior. RubyLLM system
+messages are passed as Codex developer instructions, which is the closest
+supported mapping but not an identical wire-level request.
 
 ## Requirements
 
@@ -56,16 +55,15 @@ Require the gem and use Codex as an explicit RubyLLM provider:
 ```ruby
 require "ruby_llm-codex"
 
-class ResultSchema < RubyLLM::Schema
+class SummarySchema < RubyLLM::Schema
   string :summary
-  integer :score
 end
 
-response = RubyLLM.chat(model: "gpt-5.6-luna", provider: :codex)
-  .with_instructions("Evaluate the supplied text consistently.")
-  .with_schema(ResultSchema)
+response = RubyLLM.chat(model: ENV.fetch("CODEX_MODEL"), provider: :codex)
+  .with_instructions("Return a concise summary.")
+  .with_schema(SummarySchema)
   .with_thinking(effort: :medium)
-  .ask("The text to evaluate")
+  .ask("The text to summarize")
 
 pp response.content
 ```
@@ -90,7 +88,7 @@ By default every request:
 - passes RubyLLM's JSON schema through `--output-schema`.
 
 This prevents local `AGENTS.md`, plugins, MCP servers, repository contents, and
-saved session history from quietly affecting a comparison.
+saved session history from quietly affecting a request.
 
 ## Configuration
 
@@ -101,7 +99,7 @@ To deliberately let Codex inspect a repository or use selected configuration:
 ```ruby
 chat.with_params(
   codex: {
-    working_directory: Rails.root.to_s,
+    working_directory: "/path/to/project",
     sandbox: "read-only",
     ignore_user_config: false,
     ephemeral: true,
@@ -143,9 +141,9 @@ instructions. Those settings, plus `features.shell_snapshot` and
   execution backend for your application.
 - Temperature is rejected because this Codex path does not expose it.
 - Fresh `codex exec` process per RubyLLM completion. This prioritizes isolation
-  and simple comparisons over throughput.
+  and predictable behavior over throughput.
 - Multi-turn RubyLLM histories are serialized into a role-labelled transcript.
-  One-shot `with_instructions(...).ask(...)` experiments have the cleanest
+  One-shot `with_instructions(...).ask(...)` requests have the most direct
   semantic mapping.
 
 If you later need streaming, persistent threads, or high throughput, replace
@@ -162,7 +160,7 @@ client while keeping the same RubyLLM provider surface.
   explicitly disables Codex shell snapshots, which are unnecessary for its
   completion-only execution and previously caused runaway Bash processes.
 - **Local instructions affect output:** keep `ignore_user_config: true` and do
-  not set a working directory when you need isolated comparisons.
+  not set a working directory when you need isolated requests.
 
 ## Development
 
@@ -185,11 +183,12 @@ The default Rake task runs the unit suite and Standard Ruby. CI runs the same
 gate on Ruby 3.3, 3.4, and 4.0.3, then validates commit messages and
 git-cliff changelog generation.
 
-The authenticated smoke task is intentionally separate because it consumes
-Codex subscription allowance:
+The authenticated smoke task is intentionally separate because it sends real
+requests through the configured Codex account. Choose a model available to that
+account:
 
 ```bash
-bundle exec rake codex:smoke
+CODEX_MODEL=your-model bundle exec rake codex:smoke
 ```
 
 When changing process lifecycle or shell execution, run that task inside a
@@ -244,3 +243,14 @@ the [Code of Conduct](CODE_OF_CONDUCT.md). Security reports should follow
 ## License
 
 MIT License. See [LICENSE](LICENSE).
+
+## About
+
+Made by the team at [Ethos Link](https://www.ethos-link.com) — practical
+software for growing businesses. We build tools for hospitality operators who
+need clear workflows, fast onboarding, and real human support.
+
+We also build [Reviato](https://www.reviato.com), “Capture. Interpret. Act.”.
+Turn guest feedback into clear next steps for your team. Collect private
+appraisals, spot patterns across reviews, and act before small issues turn into
+public ones.

@@ -144,7 +144,8 @@ namespace :codex do
   desc "Run live plain-text and structured-output smoke tests through Codex CLI"
   task :smoke do
     cli_path = ENV.fetch("CODEX_BIN", "codex")
-    model = ENV.fetch("CODEX_MODEL", "gpt-5.4")
+    model = ENV["CODEX_MODEL"]
+    raise "Set CODEX_MODEL to a model available in your Codex account" if model.nil? || model.empty?
     timeout = Float(ENV.fetch("CODEX_TIMEOUT", RubyLLM::Providers::Codex::DEFAULT_TIMEOUT))
     version_output, version_status = Open3.capture2e(cli_path, "--version")
     raise "Could not run #{cli_path.inspect}: #{version_output.strip}" unless version_status.success?
