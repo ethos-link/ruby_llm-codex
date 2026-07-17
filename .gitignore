@@ -1,0 +1,12 @@
+/.bundle/
+/.ruby-gemset
+/.ruby-version
+/.DS_Store
+/.yardoc/
+/coverage/
+/doc/
+/pkg/
+/tmp/
+/vendor/bundle/
+Gemfile.lock
+*.gem

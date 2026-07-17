@@ -1,0 +1,16 @@
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: bundle exec commitlint --message {1}
+    - name: standard
+      run: bundle exec rake standard
+
+pre-commit:
+  jobs:
+    - name: protect-main-master
+      run: |
+        branch=$(git branch --show-current)
+        if [ "$branch" = "master" ] || [ "$branch" = "main" ]; then
+          echo "❌ Direct commits to '$branch' are not allowed. Use a feature branch."
+          exit 1
+        fi

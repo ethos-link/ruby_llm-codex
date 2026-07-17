@@ -1,0 +1,23 @@
+name: Changelog
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate git-cliff changelog generation
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --unreleased --verbose
+        env:
+          OUTPUT: /tmp/changelog-preview.md

@@ -1,0 +1,46 @@
+name: Lint Commit Messages
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ruby
+          bundler-cache: true
+
+      - name: Lint commit messages
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            COMMITS=$(git rev-list --no-merges "$HEAD_SHA")
+          else
+            COMMITS=$(git rev-list --no-merges "${BASE_SHA}..${HEAD_SHA}")
+          fi
+
+          if [ -z "$COMMITS" ]; then
+            echo "No commits to lint"
+            exit 0
+          fi
+
+          for sha in $COMMITS; do
+            message=$(git log -1 --format=%B "$sha")
+            bundle exec commitlint --message "$message"
+          done
