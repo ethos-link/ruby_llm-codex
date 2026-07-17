@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add a local Codex CLI provider for RubyLLM plain-text and structured-output
-  experiments.
+  requests.
 - Add isolated execution defaults, timeout handling, and process-group cleanup.
 - Add live smoke coverage for plain-text and structured-output requests.
 - Add CI, Conventional Commit checks, changelog validation, and tag-driven
@@ -24,3 +24,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   during completion-only runs.
 - Align the documented Ruby requirement, CI matrix, syntax target, and locked
   development dependencies on Ruby 3.3 or newer.
+- Generalize documentation examples and live smoke configuration for public
+  reuse.

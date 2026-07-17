@@ -21,11 +21,11 @@ bundle exec lefthook install
 bundle exec rake
 ```
 
-The authenticated smoke test is separate because it invokes the real Codex CLI
-and consumes subscription allowance:
+The authenticated smoke test is separate because it invokes the real Codex CLI.
+Choose a model available to your configured account:
 
 ```bash
-bundle exec rake codex:smoke
+CODEX_MODEL=your-model bundle exec rake codex:smoke
 ```
 
 Run it inside an appropriate process and memory boundary when changing process

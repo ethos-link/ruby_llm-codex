@@ -109,7 +109,7 @@ class CodexProviderTest < Minitest::Test
       .with_params(
              codex: {
                working_directory: @directory,
-               profile: "experiment",
+               profile: "custom-profile",
                codex_home:,
                sandbox: "read-only",
                ignore_user_config: false,
@@ -122,7 +122,7 @@ class CodexProviderTest < Minitest::Test
 
     assert_equal @directory, invocation.fetch("working_directory")
     assert_equal File.expand_path(codex_home), invocation.fetch("codex_home")
-    assert_equal "experiment", invocation.fetch("profile")
+    assert_equal "custom-profile", invocation.fetch("profile")
     assert_equal "read-only", invocation.fetch("sandbox")
     refute invocation.fetch("ignore_user_config")
     refute invocation.fetch("ephemeral")
