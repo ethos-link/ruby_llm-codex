@@ -13,8 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiments.
 - Add isolated execution defaults, timeout handling, and process-group cleanup.
 - Add live smoke coverage for plain-text and structured-output requests.
+- Add CI, Conventional Commit checks, changelog validation, and tag-driven
+  RubyGems trusted publishing.
+- Document installation, configuration, limitations, troubleshooting,
+  contribution, security, and release procedures.
 
 ### Fixed
 
 - Disable unnecessary Codex shell snapshots to prevent Bash process explosions
   during completion-only runs.
+- Align the documented Ruby requirement, CI matrix, syntax target, and locked
+  development dependencies on Ruby 3.3 or newer.
