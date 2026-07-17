@@ -22,3 +22,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Disable unnecessary Codex shell snapshots to prevent Bash process explosions
   during completion-only runs.
+- Align the documented Ruby requirement, CI matrix, syntax target, and locked
+  development dependencies on Ruby 3.3 or newer.

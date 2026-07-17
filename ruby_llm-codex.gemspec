@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
   TEXT
   spec.homepage = "https://github.com/ethos-link/ruby_llm-codex"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.1.3"
+  spec.required_ruby_version = ">= 3.3.0"
 
   repo = "https://github.com/ethos-link/ruby_llm-codex"
   branch = "main"

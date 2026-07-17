@@ -19,7 +19,7 @@ mapping but not an identical wire-level experiment.
 
 ## Requirements
 
-- Ruby 3.1.3 or newer
+- Ruby 3.3 or newer
 - RubyLLM 1.16.0 or newer, below 2.0
 - Codex CLI 0.144.5 or newer, available as `codex`
 - Linux or macOS (timeout cleanup relies on POSIX process groups)
@@ -182,7 +182,7 @@ gem "ruby_llm-codex", path: "/path/to/ruby_llm-codex"
 ```
 
 The default Rake task runs the unit suite and Standard Ruby. CI runs the same
-gate on Ruby 3.1.3, 3.4, and 4.0.3, then validates commit messages and
+gate on Ruby 3.3, 3.4, and 4.0.3, then validates commit messages and
 git-cliff changelog generation.
 
 The authenticated smoke task is intentionally separate because it consumes
