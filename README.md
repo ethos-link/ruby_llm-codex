@@ -19,8 +19,8 @@ supported mapping but not an identical wire-level request.
 ## Requirements
 
 - Ruby 3.3 or newer
-- RubyLLM 1.16.0 or newer, below 2.0
-- Codex CLI 0.144.5 or newer, available as `codex`
+- RubyLLM 2.1.1 or newer, below 2.2
+- Codex CLI 0.162.1 or newer, available as `codex`
 - Linux or macOS (timeout cleanup relies on POSIX process groups)
 - A completed ChatGPT login: `codex login`
 
@@ -33,6 +33,8 @@ codex login
 
 Check the model list in your installed Codex version before a large run. Model
 availability depends on the account and currently installed CLI.
+
+For migration steps from RubyLLM 1.x, see [UPGRADE.md](UPGRADE.md).
 
 ## Installation
 
@@ -55,7 +57,7 @@ Require the gem and use Codex as an explicit RubyLLM provider:
 ```ruby
 require "ruby_llm-codex"
 
-class SummarySchema < RubyLLM::Schema
+class SummarySchema < Schematist::Schema
   string :summary
 end
 
@@ -65,11 +67,11 @@ response = RubyLLM.chat(model: ENV.fetch("CODEX_MODEL"), provider: :codex)
   .with_thinking(effort: :medium)
   .ask("The text to summarize")
 
-pp response.content
+pp response.parsed
 ```
 
-`response.content` is normalized by RubyLLM into the same Hash shape returned
-for structured outputs from its other providers.
+`response.content` contains the JSON string. Read `response.parsed` for the
+structured Hash, and `response.tokens` for token counts.
 
 ## Isolation and reproducibility
 
@@ -97,7 +99,7 @@ saved session history from quietly affecting a request.
 To deliberately let Codex inspect a repository or use selected configuration:
 
 ```ruby
-chat.with_params(
+chat.with_provider_options(
   codex: {
     working_directory: "/path/to/project",
     sandbox: "read-only",
@@ -126,8 +128,8 @@ RubyLLM.configure do |config|
 end
 ```
 
-Only the nested `codex` namespace is accepted by `with_params`; unsupported
-generic params raise an error instead of being silently ignored. Use
+Only the nested `codex` namespace is accepted by `with_provider_options`; unsupported
+generic provider options raise an error instead of being silently ignored. Use
 `with_thinking` for reasoning effort and `with_instructions` for developer
 instructions. Those settings, plus `features.shell_snapshot` and
 `shell_environment_policy.inherit`, are reserved from the arbitrary

@@ -3,7 +3,7 @@
 require_relative "test_helper"
 
 class CodexProviderTest < Minitest::Test
-  class ResultSchema < RubyLLM::Schema
+  class ResultSchema < Schematist::Schema
     string :answer
     integer :score
   end
@@ -22,6 +22,7 @@ class CodexProviderTest < Minitest::Test
   ENVIRONMENT_KEYS = %w[
     FAKE_CODEX_DESCENDANT_MARKER
     FAKE_CODEX_FAIL
+    FAKE_CODEX_EXIT_WITH_DESCENDANT
     FAKE_CODEX_FALLBACK
     FAKE_CODEX_INVALID_JSON
     FAKE_CODEX_LOG
@@ -64,11 +65,11 @@ class CodexProviderTest < Minitest::Test
     response = RubyLLM.chat(model: "gpt-test", provider: :codex).ask("Reply OK")
 
     assert_equal "OK", response.content
-    assert_equal "gpt-test", response.model_id
-    assert_equal 75, response.input_tokens
-    assert_equal 25, response.cached_tokens
-    assert_equal 12, response.output_tokens
-    assert_equal 3, response.thinking_tokens
+    assert_equal "gpt-test", response.model
+    assert_equal 75, response.tokens.input
+    assert_equal 25, response.tokens.cache_read
+    assert_equal 12, response.tokens.output
+    assert_equal 3, response.tokens.thinking
     assert_equal 2, invocations.length
     assert_equal "version", invocations.first.fetch("kind")
     assert_equal "exec", invocations.last.fetch("kind")
@@ -80,7 +81,7 @@ class CodexProviderTest < Minitest::Test
       .ask("Evaluate this")
     invocation = exec_invocation
 
-    assert_equal({"answer" => "ok", "score" => 7}, response.content)
+    assert_equal({"answer" => "ok", "score" => 7}, response.parsed)
     assert_equal "object", invocation.dig("schema", "type")
     assert_equal %w[answer score], invocation.dig("schema", "required")
   end
@@ -106,7 +107,7 @@ class CodexProviderTest < Minitest::Test
     Dir.mkdir(codex_home)
     RubyLLM.chat(model: "gpt-test", provider: :codex)
       .with_thinking(effort: :medium)
-      .with_params(
+      .with_provider_options(
              codex: {
                working_directory: @directory,
                profile: "custom-profile",
@@ -188,10 +189,10 @@ class CodexProviderTest < Minitest::Test
     response = RubyLLM.chat(model: "gpt-test", provider: :codex).ask("Reply OK")
 
     assert_equal "diagnostic warning\n", response.raw.fetch(:stderr)
-    assert_nil response.input_tokens
-    assert_nil response.cached_tokens
-    assert_nil response.output_tokens
-    assert_nil response.thinking_tokens
+    assert_nil response.tokens.input
+    assert_nil response.tokens.cache_read
+    assert_nil response.tokens.output
+    assert_nil response.tokens.thinking
   end
 
   def test_process_timeout_terminates_descendants
@@ -210,12 +211,51 @@ class CodexProviderTest < Minitest::Test
     assert File.exist?(marker), "expected the descendant process to receive TERM"
   end
 
+  def test_timeout_covers_pipes_held_by_descendants_after_parent_exits
+    marker = File.join(@directory, "descendant-terminated")
+    ENV["FAKE_CODEX_SLEEP"] = "1"
+    ENV["FAKE_CODEX_EXIT_WITH_DESCENDANT"] = "1"
+    ENV["FAKE_CODEX_DESCENDANT_MARKER"] = marker
+    RubyLLM.config.codex_timeout = 0.5
+
+    assert_raises(RubyLLM::Providers::Codex::TimeoutError) do
+      RubyLLM.chat(model: "gpt-test", provider: :codex).ask("Wait")
+    end
+  end
+
+  def test_records_successful_and_failed_attempt_usage
+    chat = RubyLLM.chat(model: "gpt-test", provider: :codex)
+    response = chat.ask("Reply OK")
+    assert_equal 1, chat.usage_entries.size
+    assert chat.usage_entries.first.succeeded?
+    assert_equal response.tokens.to_h, chat.tokens.to_h
+
+    ENV["FAKE_CODEX_FAIL"] = "1"
+    assert_raises(RubyLLM::Providers::Codex::Error) { chat.ask("Fail") }
+    assert_equal 2, chat.usage_entries.size
+    assert chat.usage_entries.last.failed?
+  end
+
+  def test_before_request_receives_the_codex_request
+    payload = nil
+    RubyLLM.chat(model: "gpt-test", provider: :codex)
+      .before_request { |request| payload = request }
+      .ask("Reply OK")
+
+    assert_equal "Reply OK", payload.fetch(:prompt)
+    assert_equal "gpt-test", payload.fetch(:model)
+  end
+
   def test_unsupported_provider_features_are_rejected
-    tool = Object.new
-    tool.define_singleton_method(:name) { "sample" }
+    tool = Class.new(RubyLLM::Tool) do
+      description "Sample tool"
+      def execute
+        "sample"
+      end
+    end.new
 
     assert_raises(RubyLLM::Providers::Codex::UnsupportedFeatureError) do
-      RubyLLM.chat(model: "gpt-test", provider: :codex).with_tool(tool).ask("Use tool")
+      RubyLLM.chat(model: "gpt-test", provider: :codex).with_tools(tool).ask("Use tool")
     end
     assert_raises(RubyLLM::Providers::Codex::UnsupportedFeatureError) do
       RubyLLM.chat(model: "gpt-test", provider: :codex).with_temperature(0.2).ask("Reply")
@@ -227,8 +267,7 @@ class CodexProviderTest < Minitest::Test
       RubyLLM.chat(model: "gpt-test", provider: :codex).ask("Reply") { |_chunk| nil }
     end
     assert_raises(RubyLLM::Providers::Codex::UnsupportedFeatureError) do
-      content = RubyLLM::Content.new("Reply", __FILE__)
-      RubyLLM.chat(model: "gpt-test", provider: :codex).ask(content)
+      RubyLLM.chat(model: "gpt-test", provider: :codex).ask("Reply", with: __FILE__)
     end
     assert_raises(RubyLLM::Providers::Codex::UnsupportedFeatureError) do
       RubyLLM.chat(model: "gpt-test", provider: :codex).with_thinking(budget: 100).ask("Reply")
@@ -238,30 +277,52 @@ class CodexProviderTest < Minitest::Test
   def test_unknown_generic_params_and_reserved_config_keys_are_rejected
     error = assert_raises(RubyLLM::Providers::Codex::UnsupportedFeatureError) do
       RubyLLM.chat(model: "gpt-test", provider: :codex)
-        .with_params(max_tokens: 10)
+        .with_provider_options(max_tokens: 10)
         .ask("Reply OK")
     end
     assert_match(/max_tokens/, error.message)
 
     error = assert_raises(RubyLLM::Providers::Codex::UnsupportedFeatureError) do
       RubyLLM.chat(model: "gpt-test", provider: :codex)
-        .with_params(codex: {config: {model_reasoning_effort: "high"}})
+        .with_provider_options(codex: {config: {model_reasoning_effort: "high"}})
         .ask("Reply OK")
     end
     assert_match(/model_reasoning_effort/, error.message)
 
     error = assert_raises(RubyLLM::Providers::Codex::UnsupportedFeatureError) do
       RubyLLM.chat(model: "gpt-test", provider: :codex)
-        .with_params(codex: {config: {"features.shell_snapshot" => true}})
+        .with_provider_options(codex: {config: {"features.shell_snapshot" => true}})
         .ask("Reply OK")
     end
     assert_match(/features\.shell_snapshot/, error.message)
   end
 
+  def test_missing_cli_raises_provider_error
+    RubyLLM.config.codex_cli_path = File.join(@directory, "missing")
+
+    error = assert_raises(RubyLLM::Providers::Codex::Error) do
+      RubyLLM.chat(model: "gpt-test", provider: :codex).ask("Reply")
+    end
+    assert_match(/Could not execute Codex CLI/, error.message)
+  end
+
+  def test_nonfinite_timeout_is_rejected
+    assert_raises(ArgumentError) do
+      RubyLLM.chat(model: "gpt-test", provider: :codex)
+        .with_provider_options(codex: {timeout: Float::INFINITY}).ask("Reply")
+    end
+    assert_empty invocations
+  end
+
+  def test_explicit_codex_protocol_is_supported
+    response = RubyLLM.chat(model: "gpt-test", provider: :codex, protocol: :codex).ask("Reply")
+    assert_equal "OK", response.content
+  end
+
   def test_boolean_options_must_be_booleans
     error = assert_raises(ArgumentError) do
       RubyLLM.chat(model: "gpt-test", provider: :codex)
-        .with_params(codex: {ephemeral: "false"})
+        .with_provider_options(codex: {ephemeral: "false"})
         .ask("Reply OK")
     end
 
@@ -271,7 +332,7 @@ class CodexProviderTest < Minitest::Test
   def test_missing_working_directory_is_rejected
     error = assert_raises(RubyLLM::Providers::Codex::Error) do
       RubyLLM.chat(model: "gpt-test", provider: :codex)
-        .with_params(codex: {working_directory: File.join(@directory, "missing")})
+        .with_provider_options(codex: {working_directory: File.join(@directory, "missing")})
         .ask("Reply OK")
     end
 
@@ -302,7 +363,7 @@ class CodexProviderTest < Minitest::Test
 
       if ARGV == ["--version"]
         record(kind: "version")
-        puts "codex-cli \#{ENV.fetch("FAKE_CODEX_VERSION", "0.144.5")}"
+        puts "codex-cli \#{ENV.fetch("FAKE_CODEX_VERSION", "0.162.1")}"
         exit
       end
 
@@ -365,6 +426,7 @@ class CodexProviderTest < Minitest::Test
         spawn(RbConfig.ruby, "-e", child, marker, ready)
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 1
         sleep 0.01 until File.exist?(ready) || Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+        exit if ENV["FAKE_CODEX_EXIT_WITH_DESCENDANT"]
         sleep 30
       end
 

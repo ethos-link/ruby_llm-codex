@@ -163,7 +163,7 @@ namespace :codex do
 
     marker = "RUBY_LLM_CODEX_SMOKE_OK"
     plain = RubyLLM.chat(model:, provider: :codex)
-      .with_params(**request_options)
+      .with_provider_options(**request_options)
       .with_thinking(effort: :low)
       .ask("Reply with exactly #{marker} and nothing else.")
     raise "Plain-text smoke test returned #{plain.content.inspect}" unless plain.content.strip == marker
@@ -179,11 +179,11 @@ namespace :codex do
       }
     }
     structured = RubyLLM.chat(model:, provider: :codex)
-      .with_params(**request_options)
+      .with_provider_options(**request_options)
       .with_schema(schema)
       .with_thinking(effort: :low)
       .ask("Return the requested smoke-test status.")
-    unless structured.content == {"status" => "ok"}
+    unless structured.parsed == {"status" => "ok"}
       raise "Structured-output smoke test returned #{structured.content.inspect}"
     end
 

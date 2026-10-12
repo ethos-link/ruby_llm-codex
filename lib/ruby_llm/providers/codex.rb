@@ -13,6 +13,8 @@ module RubyLLM
     # This provider is deliberately narrow: non-streaming text generation and
     # structured output are supported; RubyLLM tools and attachments are not.
     class Codex < Provider
+      protocol :codex, ::RubyLLM::Protocol
+
       class Error < RubyLLM::Error; end
       class TimeoutError < Error; end
       class UnsupportedFeatureError < Error; end
@@ -20,7 +22,7 @@ module RubyLLM
       DEFAULT_SANDBOX = "read-only"
       DEFAULT_TIMEOUT = 300
       DEFAULT_SHELL_ENVIRONMENT_INHERIT = "none"
-      MINIMUM_CLI_VERSION = "0.144.5"
+      MINIMUM_CLI_VERSION = "0.162.1"
       RESERVED_CONFIG_KEYS = %w[
         developer_instructions
         features.shell_snapshot
@@ -37,11 +39,23 @@ module RubyLLM
       end
 
       # rubocop:disable Metrics/ParameterLists
-      def complete(messages, tools:, temperature:, model:, params: {}, headers: {},
-        schema: nil, thinking: nil, tool_prefs: nil, &stream)
+      def complete(messages, tools:, temperature:, model:, provider_options: {}, headers: {},
+        schema: nil, thinking: nil, tool_prefs: nil, max_output_tokens: nil,
+        citations: false, caching: nil, protocol: nil, before_request: [],
+        usage_recorder: nil, provider_tools: [], compaction: nil, end_user: nil, &stream)
         validate_request!(tools:, temperature:, headers:, stream:)
 
-        options = codex_options(params)
+        unsupported = {
+          max_output_tokens:, citations: citations || nil, caching:,
+          provider_tools: provider_tools.empty? ? nil : provider_tools,
+          compaction:, end_user:, tool_prefs: (tool_prefs if tool_prefs&.values&.any?)
+        }.compact
+        unless unsupported.empty?
+          raise UnsupportedFeatureError,
+            "Unsupported Codex request options: #{unsupported.keys.join(", ")}"
+        end
+
+        options = codex_options(provider_options)
         developer_instructions, prompt = build_prompt(messages)
         request = {
           model: model.id,
@@ -51,9 +65,22 @@ module RubyLLM
           thinking:
         }
 
+        before_request.each { |hook| hook.call(request) }
+        tracker = Accounting::Usage::Tracker.new(
+          operation: :chat, provider: self, model:, config: @config, on_finish: usage_recorder
+        )
         with_working_directory(options) do |working_directory|
-          run_codex(request, working_directory:, options:)
+          ensure_cli_compatible!(working_directory, options)
+          tracker.start
+          response = run_codex(request, working_directory:, options:)
+          tracker.succeed(response)
         end
+      rescue Errno::ENOENT => error
+        tracker&.fail_pending(error)
+        raise Error, "Could not execute Codex CLI: #{error.message}. Install it or set codex_cli_path."
+      rescue => error
+        tracker&.fail_pending(error)
+        raise
       end
       # rubocop:enable Metrics/ParameterLists
 
@@ -109,11 +136,11 @@ module RubyLLM
           "Per-request HTTP headers do not apply to the local Codex provider"
       end
 
-      def codex_options(params)
-        validate_params!(params)
-        raw = params.is_a?(Hash) ? (params[:codex] || params["codex"] || {}) : {}
+      def codex_options(provider_options)
+        validate_provider_options!(provider_options)
+        raw = provider_options.is_a?(Hash) ? (provider_options[:codex] || provider_options["codex"] || {}) : {}
         unless raw.is_a?(Hash)
-          raise ArgumentError, "Codex params must be a Hash"
+          raise ArgumentError, "Codex provider_options must be a Hash"
         end
 
         raw = raw.transform_keys(&:to_sym)
@@ -144,16 +171,16 @@ module RubyLLM
         }
       end
 
-      def validate_params!(params)
-        unless params.is_a?(Hash)
-          raise ArgumentError, "RubyLLM params must be a Hash"
+      def validate_provider_options!(provider_options)
+        unless provider_options.is_a?(Hash)
+          raise ArgumentError, "RubyLLM provider_options must be a Hash"
         end
 
-        unsupported = params.keys.reject { |key| key.to_s == "codex" }
+        unsupported = provider_options.keys.reject { |key| key.to_s == "codex" }
         return if unsupported.empty?
 
         raise UnsupportedFeatureError,
-          "Unsupported params for the local Codex provider: #{unsupported.map(&:inspect).join(", ")}"
+          "Unsupported provider_options for the local Codex provider: #{unsupported.map(&:inspect).join(", ")}"
       end
 
       def validate_config!(config)
@@ -168,7 +195,7 @@ module RubyLLM
         value = raw.key?(:timeout) ? raw[:timeout] : @config.codex_timeout
         value = DEFAULT_TIMEOUT if value.nil?
         timeout = Float(value)
-        raise ArgumentError, "Codex timeout must be greater than zero" unless timeout.positive?
+        raise ArgumentError, "Codex timeout must be greater than zero" unless timeout.finite? && timeout.positive?
 
         timeout
       rescue TypeError, ArgumentError
@@ -200,8 +227,6 @@ module RubyLLM
       end
 
       def run_codex(request, working_directory:, options:)
-        ensure_cli_compatible!(working_directory, options)
-
         Tempfile.create(["ruby-llm-codex-output-", ".txt"]) do |output_file|
           with_schema_file(request[:schema]) do |schema_path|
             output_file.close
@@ -295,7 +320,7 @@ module RubyLLM
           chdir: working_directory,
           pgroup: true
         )
-        threads << writer = Thread.new do
+        threads << Thread.new do
           stdin.write(prompt)
         rescue Errno::EPIPE, IOError
           nil
@@ -306,12 +331,15 @@ module RubyLLM
         threads << stderr_reader = Thread.new { stderr.read }
         threads.each { |thread| thread.report_on_exception = false }
 
-        unless wait_thread.join(options[:timeout])
-          terminate_process_group(wait_thread)
-          raise TimeoutError, "Codex CLI timed out after #{options[:timeout]} seconds"
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + options[:timeout]
+        [wait_thread, *threads].each do |thread|
+          remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          unless thread.join([remaining, 0].max)
+            terminate_process_group(wait_thread, threads)
+            raise TimeoutError, "Codex CLI timed out after #{options[:timeout]} seconds"
+          end
         end
 
-        writer.join
         [stdout_reader.value, stderr_reader.value, wait_thread.value]
       ensure
         [stdin, stdout, stderr].compact.each do |io|
@@ -322,10 +350,13 @@ module RubyLLM
         threads.each { |thread| thread.kill if thread.alive? }
       end
 
-      def terminate_process_group(wait_thread)
+      def terminate_process_group(wait_thread, threads)
         Process.kill("TERM", -wait_thread.pid)
-        return if wait_thread.join(2)
-
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 2
+        [wait_thread, *threads].each do |thread|
+          remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          thread.join([remaining, 0].max)
+        end
         Process.kill("KILL", -wait_thread.pid)
         wait_thread.join
       rescue Errno::ESRCH, Errno::ECHILD
@@ -335,7 +366,7 @@ module RubyLLM
       def add_reasoning_config(command, thinking)
         return unless thinking
 
-        effort = thinking.respond_to?(:effort) ? thinking.effort : thinking
+        effort = thinking.effort
         if effort
           add_config(command, "model_reasoning_effort", effort.to_s)
           return
@@ -387,7 +418,7 @@ module RubyLLM
       end
 
       def raise_invocation_error!(status, events, stderr)
-        event = events.reverse.find { |item| %w[turn.failed error].include?(item["type"]) }
+        event = events.reverse_each.find { |item| %w[turn.failed error].include?(item["type"]) }
         detail = event && (event["message"] || event["error"] || event).to_s
         detail = stderr.strip if detail.to_s.strip.empty?
         detail = "Codex exited with status #{status.exitstatus}" if detail.to_s.strip.empty?
@@ -395,14 +426,14 @@ module RubyLLM
       end
 
       def final_agent_message(events)
-        event = events.reverse.find do |item|
+        event = events.reverse_each.find do |item|
           item["type"] == "item.completed" && item.dig("item", "type") == "agent_message"
         end
         event&.dig("item", "text")
       end
 
       def build_message(content, model, events, stderr)
-        usage = events.reverse.find { |event| event["type"] == "turn.completed" }&.fetch("usage", {}) || {}
+        usage = events.reverse_each.find { |event| event["type"] == "turn.completed" }&.fetch("usage", {}) || {}
         cached = integer_or_nil(usage["cached_input_tokens"])
         total_input = integer_or_nil(usage["input_tokens"])
         uncached_input = total_input && [total_input - cached.to_i, 0].max
@@ -410,11 +441,14 @@ module RubyLLM
         Message.new(
           role: :assistant,
           content: content,
-          model_id: model,
-          input_tokens: uncached_input,
-          cached_tokens: cached,
-          output_tokens: integer_or_nil(usage["output_tokens"]),
-          thinking_tokens: integer_or_nil(usage["reasoning_output_tokens"]),
+          model:,
+          tokens: Tokens.new(
+            input: uncached_input,
+            cache_read: cached,
+            output: integer_or_nil(usage["output_tokens"]),
+            thinking: integer_or_nil(usage["reasoning_output_tokens"])
+          ),
+          finish_reason: :stop,
           raw: {events:, stderr: stderr.empty? ? nil : stderr}
         )
       end
@@ -449,23 +483,12 @@ module RubyLLM
       end
 
       def text_content(message)
-        content = message.content
-        return content if content.is_a?(String)
-
-        if content.is_a?(RubyLLM::Content)
-          unless content.attachments.empty?
-            raise UnsupportedFeatureError,
-              "Attachments are not supported by the Codex comparison provider"
-          end
-          return content.text.to_s
-        end
-
-        if defined?(RubyLLM::Content::Raw) && content.is_a?(RubyLLM::Content::Raw)
+        unless message.attachments.empty?
           raise UnsupportedFeatureError,
-            "Raw provider content is not supported by the Codex comparison provider"
+            "Attachments are not supported by the Codex comparison provider"
         end
 
-        content.respond_to?(:to_json) ? content.to_json : content.to_s
+        message.content
       end
 
       def present?(value)

@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     allowed_prefixes = %w[lib/].freeze
-    allowed_files = %w[CHANGELOG.md LICENSE README.md].freeze
+    allowed_files = %w[CHANGELOG.md LICENSE README.md UPGRADE.md].freeze
     git_files = `git ls-files -z 2>/dev/null`.split("\x0")
     candidates = git_files.empty? ? Dir.glob("lib/**/*", File::FNM_DOTMATCH) + allowed_files : git_files
 
@@ -46,7 +46,7 @@ Gem::Specification.new do |spec|
   end
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "ruby_llm", ">= 1.16", "< 2.0"
+  spec.add_dependency "ruby_llm", "~> 2.1.1"
 
   spec.add_development_dependency "minitest", "~> 5"
   spec.add_development_dependency "rake", "~> 13"
