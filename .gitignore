@@ -1,6 +1,5 @@
 /.bundle/
 /.ruby-gemset
-/.ruby-version
 /.DS_Store
 /.yardoc/
 /coverage/
@@ -8,5 +7,4 @@
 /pkg/
 /tmp/
 /vendor/bundle/
-Gemfile.lock
 *.gem

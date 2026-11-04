@@ -2,7 +2,4 @@ source "https://rubygems.org"
 
 gemspec
 
-group :development do
-  gem "commitlint", require: false
-  gem "lefthook", require: false
-end
+gem "ethos-gemkit", "0.2.0", group: [:development, :test], require: false

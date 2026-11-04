@@ -418,7 +418,7 @@ module RubyLLM
       end
 
       def raise_invocation_error!(status, events, stderr)
-        event = events.reverse_each.find { |item| %w[turn.failed error].include?(item["type"]) }
+        event = events.rfind { |item| %w[turn.failed error].include?(item["type"]) }
         detail = event && (event["message"] || event["error"] || event).to_s
         detail = stderr.strip if detail.to_s.strip.empty?
         detail = "Codex exited with status #{status.exitstatus}" if detail.to_s.strip.empty?
@@ -426,14 +426,14 @@ module RubyLLM
       end
 
       def final_agent_message(events)
-        event = events.reverse_each.find do |item|
+        event = events.rfind do |item|
           item["type"] == "item.completed" && item.dig("item", "type") == "agent_message"
         end
         event&.dig("item", "text")
       end
 
       def build_message(content, model, events, stderr)
-        usage = events.reverse_each.find { |event| event["type"] == "turn.completed" }&.fetch("usage", {}) || {}
+        usage = events.rfind { |event| event["type"] == "turn.completed" }&.fetch("usage", {}) || {}
         cached = integer_or_nil(usage["cached_input_tokens"])
         total_input = integer_or_nil(usage["input_tokens"])
         uncached_input = total_input && [total_input - cached.to_i, 0].max

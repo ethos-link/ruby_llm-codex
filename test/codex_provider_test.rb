@@ -348,7 +348,7 @@ class CodexProviderTest < Minitest::Test
   end
 
   def exec_invocation
-    invocations.reverse.find { |invocation| invocation["kind"] == "exec" }
+    invocations.rfind { |invocation| invocation["kind"] == "exec" }
   end
 
   def fake_codex_program
@@ -423,7 +423,8 @@ class CodexProviderTest < Minitest::Test
           File.write(ready, "ready")
           sleep 30
         CHILD
-        spawn(RbConfig.ruby, "-e", child, marker, ready)
+        # The signal fixture needs only Ruby core; inherited Bundler startup can exhaust its timeout.
+        spawn(RbConfig.ruby, "-e", child, marker, ready, unsetenv_others: true)
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 1
         sleep 0.01 until File.exist?(ready) || Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
         exit if ENV["FAKE_CODEX_EXIT_WITH_DESCENDANT"]

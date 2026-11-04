@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
   TEXT
   spec.homepage = "https://github.com/ethos-link/ruby_llm-codex"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.3.0"
+  spec.required_ruby_version = ">= 4.0"
 
   repo = "https://github.com/ethos-link/ruby_llm-codex"
   branch = "main"
@@ -32,23 +32,12 @@ Gem::Specification.new do |spec|
     "rubygems_mfa_required" => "true"
   }
 
-  spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    allowed_prefixes = %w[lib/].freeze
-    allowed_files = %w[CHANGELOG.md LICENSE README.md UPGRADE.md].freeze
-    git_files = `git ls-files -z 2>/dev/null`.split("\x0")
-    candidates = git_files.empty? ? Dir.glob("lib/**/*", File::FNM_DOTMATCH) + allowed_files : git_files
-
-    candidates.select do |file|
-      next false unless File.file?(file)
-
-      allowed_files.include?(file) || allowed_prefixes.any? { |prefix| file.start_with?(prefix) }
-    end.uniq
+  spec.files = Dir.chdir(__dir__) do
+    (Dir["lib/**/*"] + ["CHANGELOG.md", "LICENSE", "README.md", "UPGRADE.md"]).select { |file| File.file?(file) }.uniq.sort
   end
   spec.require_paths = ["lib"]
 
   spec.add_dependency "ruby_llm", "~> 2.1.1"
 
   spec.add_development_dependency "minitest", "~> 5"
-  spec.add_development_dependency "rake", "~> 13"
-  spec.add_development_dependency "standard", "~> 1.0"
 end
