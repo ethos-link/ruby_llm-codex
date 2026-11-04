@@ -1,49 +1,10 @@
-name: Ruby
-
+name: Verification
 on:
-  push:
-    branches: ["main", "master"]
   pull_request:
-    branches: ["main", "master"]
-  workflow_call:
-
+  push:
+    branches: [main]
 permissions:
   contents: read
-
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        ruby-version: ["3.3", "3.4", "4.0.3"]
-
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
-
-      - name: Run tests and Standard Ruby
-        run: bundle exec rake
-
-  changelog:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Validate git-cliff changelog generation
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --unreleased --verbose
-        env:
-          OUTPUT: /tmp/changelog-preview.md
+  checks:
+    uses: ethos-link/ethos-gemkit/.github/workflows/consumer.yml@a26cf190e0d727596484be8a7f01c9046c95dd78 # v0.2.0

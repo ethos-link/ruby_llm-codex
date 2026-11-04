@@ -18,7 +18,7 @@ supported mapping but not an identical wire-level request.
 
 ## Requirements
 
-- Ruby 3.3 or newer
+- Ruby 4.0 or newer
 - RubyLLM 2.1.1 or newer, below 2.2
 - Codex CLI 0.162.1 or newer, available as `codex`
 - Linux or macOS (timeout cleanup relies on POSIX process groups)
@@ -164,78 +164,6 @@ client while keeping the same RubyLLM provider surface.
 - **Local instructions affect output:** keep `ignore_user_config: true` and do
   not set a working directory when you need isolated requests.
 
-## Development
-
-```bash
-git clone https://github.com/ethos-link/ruby_llm-codex.git
-cd ruby_llm-codex
-
-bundle install
-bundle exec rake
-```
-
-To test an unreleased checkout from another application, use a local path in
-that application's `Gemfile`:
-
-```ruby
-gem "ruby_llm-codex", path: "/path/to/ruby_llm-codex"
-```
-
-The default Rake task runs the unit suite and Standard Ruby. CI runs the same
-gate on Ruby 3.3, 3.4, and 4.0.3, then validates commit messages and
-git-cliff changelog generation.
-
-The authenticated smoke task is intentionally separate because it sends real
-requests through the configured Codex account. Choose a model available to that
-account:
-
-```bash
-CODEX_MODEL=your-model bundle exec rake codex:smoke
-```
-
-When changing process lifecycle or shell execution, run that task inside a
-bounded process and memory scope.
-
-### Git hooks
-
-This repository uses [lefthook](https://lefthook.dev/) and the Ruby
-[commitlint](https://github.com/arandilopez/commitlint) gem. Hooks reject direct
-commits to `main` or `master`, validate Conventional Commit messages, and run
-Standard Ruby.
-
-Install them once per clone:
-
-```bash
-bundle exec lefthook install
-```
-
-## Release
-
-Releases are tag-driven. GitHub Actions runs the full test matrix, publishes
-through RubyGems trusted publishing, and creates the GitHub release from
-`CHANGELOG.md`. See [docs/releasing.md](docs/releasing.md) for repository setup,
-the first-release procedure, verification, and recovery guidance.
-
-Install [git-cliff](https://git-cliff.org/) locally, check out a clean `main`,
-and run one of:
-
-```bash
-bundle exec rake 'release:prepare[patch]'
-bundle exec rake 'release:prepare[minor]'
-bundle exec rake 'release:prepare[major]'
-bundle exec rake 'release:prepare[0.2.0]'
-```
-
-For releases after `0.1.0`, the task:
-
-1. Prepends the next changelog section from Conventional Commits.
-2. Updates `lib/ruby_llm/codex/version.rb`.
-3. Commits the release files and creates `vX.Y.Z`.
-4. Pushes `main` and the tag to `origin`.
-
-The initial `0.1.0` release only needs its existing version commit tagged after
-the GitHub environment and pending RubyGems trusted publisher are configured.
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). By participating, you agree to follow
@@ -246,13 +174,35 @@ the [Code of Conduct](CODE_OF_CONDUCT.md). Security reports should follow
 
 MIT License. See [LICENSE](LICENSE).
 
-## About
+## Development and releases
 
-Made by the team at [Ethos Link](https://www.ethos-link.com) — practical
-software for growing businesses. We build tools for hospitality operators who
-need clear workflows, fast onboarding, and real human support.
+Shared tooling uses published [Ethos Gemkit](https://github.com/ethos-link/ethos-gemkit).
+Keep the exact Gemfile version and workflow commit pins on the same release.
 
-We also build [Reviato](https://www.reviato.com), “Capture. Interpret. Act.”.
-Turn guest feedback into clear next steps for your team. Collect private
-appraisals, spot patterns across reviews, and act before small issues turn into
-public ones.
+```sh
+bundle install
+bundle exec lefthook install
+bundle exec rake verify
+```
+
+Verification uses a fake Codex executable; it makes no live model requests.
+The optional `codex:smoke` task requires your Codex account, an available
+`CODEX_MODEL` and a bounded process/memory scope.
+
+From clean, current `main`, run `bundle exec rake 'release:prepare[patch]'`
+(or `minor`, `major`, or an explicit version). Review and merge the generated
+release PR to publish through Actions. Shared prerequisites, registry credentials
+and failed-job recovery are in the [Gemkit release guide](https://github.com/ethos-link/ethos-gemkit#releasing-a-gem).
+
+## Built by Ethos Link
+
+[Ethos Link](https://www.ethos-link.com) builds business software and integrations
+that replace manual handoffs with connected workflows. We help teams automate
+routine work, use their data and improve the processes their business runs on.
+
+- [Reviato](https://www.reviato.com): Read public review trends and collect
+  private customer feedback, so your team can decide what to improve.
+- [EthosPlaces](https://www.ethos.place): Give customers the details they need to
+  choose and visit your business, from opening hours to directions.
+- [Nuntio](https://www.nuntiohq.com): Draft, review and schedule social posts in
+  one workspace, then track each publishing result.
