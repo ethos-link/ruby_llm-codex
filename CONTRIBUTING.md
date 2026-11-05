@@ -46,5 +46,5 @@ unrelated formatting changes.
 
 ## Releases
 
-Only maintainers publish releases. See [docs/releasing.md](docs/releasing.md) for
+Only maintainers publish releases. See [the Gemkit release guide](https://github.com/ethos-link/ethos-gemkit#releasing-a-gem) for
 the controlled release procedure.

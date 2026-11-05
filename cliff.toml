@@ -25,14 +25,12 @@ commit_parsers = [
   { message = '^chore\(release\):', skip = true },
   { message = '^feat(\(.*\))?:', group = "Added" },
   { message = '^fix(\(.*\))?:', group = "Fixed" },
-  { message = '^docs?(\(.*\))?:', group = "Documentation" },
+  { message = '^docs(\(.*\))?:', group = "Documentation" },
   { message = '^perf(\(.*\))?:', group = "Changed" },
   { message = '^refactor(\(.*\))?:', group = "Changed" },
   { message = '^test(\(.*\))?:', group = "Changed" },
   { message = '^build(\(.*\))?:', group = "Changed" },
-  { message = '^style(\(.*\))?:', group = "Changed" },
   { message = '^chore(\(.*\))?:', group = "Changed" },
   { message = '^ci(\(.*\))?:', group = "Changed" },
-  { message = '^revert(\(.*\))?:', group = "Changed" },
 ]
 tag_pattern = "v[0-9].*"
