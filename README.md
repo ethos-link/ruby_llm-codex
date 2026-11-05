@@ -1,6 +1,6 @@
 # RubyLLM Codex provider
 
-[![Ruby](https://github.com/ethos-link/ruby_llm-codex/actions/workflows/ruby.yml/badge.svg)](https://github.com/ethos-link/ruby_llm-codex/actions/workflows/ruby.yml)
+[![Commit messages](https://github.com/ethos-link/ruby_llm-codex/actions/workflows/commitlint.yml/badge.svg)](https://github.com/ethos-link/ruby_llm-codex/actions/workflows/commitlint.yml)
 [![Gem Version](https://badge.fury.io/rb/ruby_llm-codex.svg)](https://rubygems.org/gems/ruby_llm-codex)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
