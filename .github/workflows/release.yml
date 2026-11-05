@@ -11,6 +11,6 @@ permissions:
   packages: write
 jobs:
   release:
-    uses: ethos-link/ethos-gemkit/.github/workflows/release.yml@06621835e5455ac550226e39be279ddbd24a918e # v0.3.0
+    uses: ethos-link/ethos-gemkit/.github/workflows/release.yml@ea07425501da0a4cdd82594e1234d32783d4fc27 # v0.3.1
     with:
       rubygems-owner: '27209'
