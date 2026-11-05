@@ -19,8 +19,8 @@ validated, and aligned with this gem's public API.
 - Release changes must preserve existing `CHANGELOG.md` history.
 - Use the release task instead of hand-editing version files and tags.
 - Changelog pull request references must link to PRs, not issues.
-- Before finishing release-harness changes, run the release task's validation
-  paths and a `git-cliff` smoke check.
+- Run `bundle exec rake verify` before handing off. Shared release safeguards
+  and fixtures live in [Gemkit](https://github.com/ethos-link/ethos-gemkit).
 
 ## Git Standards
 
