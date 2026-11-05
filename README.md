@@ -41,7 +41,7 @@ For migration steps from RubyLLM 1.x, see [UPGRADE.md](UPGRADE.md).
 Add the gem to your application's `Gemfile`:
 
 ```ruby
-gem "ruby_llm-codex", "~> 0.1"
+gem "ruby_llm-codex", "~> 0.4.0"
 ```
 
 Then run `bundle install`. You can also install it directly:
