@@ -16,6 +16,12 @@ API. Codex applies its own base instructions and runtime behavior. RubyLLM syste
 messages are passed as Codex developer instructions, which is the closest
 supported mapping but not an identical wire-level request.
 
+## Documentation
+
+This README and the linked repository guides describe the checked-out code.
+The [Ethos Link project page](https://www.ethos-link.com/opensource/ruby-llm-codex)
+provides the canonical public project guide, overview and resources.
+
 ## Requirements
 
 - Ruby 4.0 or newer
@@ -50,7 +56,25 @@ Then run `bundle install`. You can also install it directly:
 gem install ruby_llm-codex
 ```
 
-## Usage
+## Quick start
+
+Set `CODEX_MODEL` to a model available to the account configured by
+`codex login`, then run:
+
+```ruby
+require "ruby_llm-codex"
+
+response = RubyLLM.chat(
+  model: ENV.fetch("CODEX_MODEL"), provider: :codex
+).ask("Reply with a short greeting.")
+
+puts response.content
+```
+
+Each request starts a local `codex exec` process. Its output and usage depend on
+the selected model and account; the gem does not provide its own model list.
+
+## Structured output
 
 Require the gem and use Codex as an explicit RubyLLM provider:
 
@@ -89,8 +113,10 @@ By default every request:
 - passes RubyLLM's system instruction as Codex developer instructions;
 - passes RubyLLM's JSON schema through `--output-schema`.
 
-This prevents local `AGENTS.md`, plugins, MCP servers, repository contents, and
-saved session history from quietly affecting a request.
+These defaults separate the request from the current repository and user
+configuration. Supplying a working directory, profile or user configuration
+changes that context deliberately; the adapter still runs the Codex harness.
+Sandbox behaviour also depends on the installed CLI and host platform.
 
 ## Configuration
 
@@ -99,6 +125,8 @@ saved session history from quietly affecting a request.
 To deliberately let Codex inspect a repository or use selected configuration:
 
 ```ruby
+chat = RubyLLM.chat(model: ENV.fetch("CODEX_MODEL"), provider: :codex)
+
 chat.with_provider_options(
   codex: {
     working_directory: "/path/to/project",
@@ -148,9 +176,8 @@ instructions. Those settings, plus `features.shell_snapshot` and
   One-shot `with_instructions(...).ask(...)` requests have the most direct
   semantic mapping.
 
-If you later need streaming, persistent threads, or high throughput, replace
-the process-per-request implementation with a long-running `codex app-server`
-client while keeping the same RubyLLM provider surface.
+Streaming, persistent threads and a long-running app-server client are not
+implemented by this gem.
 
 ## Troubleshooting
 
@@ -191,3 +218,15 @@ The optional `codex:smoke` task requires your Codex account, an available
 
 Release preparation, publication, registry setup and recovery are documented
 in the [Gemkit release guide](https://github.com/ethos-link/ethos-gemkit#releasing-a-gem).
+
+## About Ethos Link
+
+[Ethos Link](https://www.ethos-link.com) is a software company founded by
+[Paulo Fidalgo](https://www.fidalgo.pt). This gem is part of the open-source
+tooling we publish alongside our business products:
+
+- [Reviato](https://www.reviato.com): collect private customer feedback and analyse public reviews.
+- [Nuntio](https://www.nuntiohq.com): prepare, review and schedule social posts.
+- [EthosPlaces](https://www.ethos.place): find places, opening hours and contact details.
+
+Explore our [open-source projects](https://www.ethos-link.com/opensource).

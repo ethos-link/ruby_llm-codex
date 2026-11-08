@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
     authentication, and maps RubyLLM structured-output schemas to Codex output
     schemas.
   TEXT
-  spec.homepage = "https://github.com/ethos-link/ruby_llm-codex"
+  spec.homepage = "https://www.ethos-link.com/opensource/ruby-llm-codex"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 4.0"
 
@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
     "source_code_uri" => repo,
     "bug_tracker_uri" => "#{repo}/issues",
     "changelog_uri" => "#{repo}/blob/#{branch}/CHANGELOG.md",
-    "documentation_uri" => "#{repo}/blob/#{branch}/README.md",
+    "documentation_uri" => spec.homepage,
     "funding_uri" => "https://www.reviato.com/",
     "github_repo" => "ssh://github.com/ethos-link/ruby_llm-codex",
     "allowed_push_host" => "https://rubygems.org",
